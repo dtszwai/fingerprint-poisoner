@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Fingerprint Protector</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        padding: 15px;
+        width: 300px;
+      }
+
+      h1 {
+        font-size: 18px;
+        margin-bottom: 15px;
+      }
+
+      .control-group {
+        margin-bottom: 15px;
+      }
+
+      .switch {
+        position: relative;
+        display: inline-block;
+        width: 40px;
+        height: 24px;
+      }
+
+      .switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+      }
+
+      .slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #ccc;
+        -webkit-transition: 0.4s;
+        transition: 0.4s;
+        border-radius: 24px;
+      }
+
+      .slider:before {
+        position: absolute;
+        content: "";
+        height: 16px;
+        width: 16px;
+        left: 4px;
+        bottom: 4px;
+        background-color: white;
+        -webkit-transition: 0.4s;
+        transition: 0.4s;
+        border-radius: 50%;
+      }
+
+      input:checked + .slider {
+        background-color: #2196f3;
+      }
+
+      input:focus + .slider {
+        box-shadow: 0 0 1px #2196f3;
+      }
+
+      input:checked + .slider:before {
+        -webkit-transform: translateX(16px);
+        -ms-transform: translateX(16px);
+        transform: translateX(16px);
+      }
+
+      .control-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+      }
+
+      .control-label {
+        margin-right: 10px;
+      }
+
+      select {
+        padding: 5px;
+        border-radius: 4px;
+        border: 1px solid #ccc;
+        width: 150px;
+      }
+
+      hr {
+        margin: 20px 0;
+        border: none;
+        border-top: 1px solid #eee;
+      }
+
+      button {
+        background-color: #2196f3;
+        color: white;
+        border: none;
+        padding: 8px 15px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: bold;
+      }
+
+      button:hover {
+        background-color: #0b7dda;
+      }
+
+      .note {
+        margin-top: 15px;
+        font-size: 12px;
+        color: #666;
+        font-style: italic;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Fingerprint Protector</h1>
+
+    <div class="control-group">
+      <div class="control-row">
+        <span class="control-label">Enable Protection</span>
+        <label class="switch">
+          <input type="checkbox" id="enabledToggle" />
+          <span class="slider"></span>
+        </label>
+      </div>
+    </div>
+
+    <hr />
+
+    <div class="control-group">
+      <div class="control-row">
+        <span class="control-label">User-Agent Spoofing</span>
+        <label class="switch">
+          <input type="checkbox" id="userAgentToggle" />
+          <span class="slider"></span>
+        </label>
+      </div>
+      <select id="userAgentSelect">
+        <!-- Will be populated by JavaScript -->
+      </select>
+    </div>
+
+    <div class="control-group">
+      <div class="control-row">
+        <span class="control-label">Timezone Spoofing</span>
+        <label class="switch">
+          <input type="checkbox" id="timezoneToggle" />
+          <span class="slider"></span>
+        </label>
+      </div>
+      <select id="timezoneSelect">
+        <!-- Will be populated by JavaScript -->
+      </select>
+    </div>
+
+    <div class="control-group">
+      <div class="control-row">
+        <span class="control-label">Canvas Fingerprinting</span>
+        <label class="switch">
+          <input type="checkbox" id="canvasToggle" />
+          <span class="slider"></span>
+        </label>
+      </div>
+    </div>
+
+    <div class="control-group">
+      <div class="control-row">
+        <span class="control-label">Block WebRTC</span>
+        <label class="switch">
+          <input type="checkbox" id="webrtcToggle" />
+          <span class="slider"></span>
+        </label>
+      </div>
+    </div>
+
+    <div class="control-group">
+      <div class="control-row">
+        <span class="control-label">Block WebGL</span>
+        <label class="switch">
+          <input type="checkbox" id="webglToggle" />
+          <span class="slider"></span>
+        </label>
+      </div>
+    </div>
+
+    <div class="control-group">
+      <div class="control-row">
+        <span class="control-label">AudioContext Protection</span>
+        <label class="switch">
+          <input type="checkbox" id="audioToggle" />
+          <span class="slider"></span>
+        </label>
+      </div>
+    </div>
+
+    <div class="control-group">
+      <div class="control-row">
+        <span class="control-label">Randomize Values</span>
+        <label class="switch">
+          <input type="checkbox" id="randomizeToggle" />
+          <span class="slider"></span>
+        </label>
+      </div>
+    </div>
+
+    <button id="saveButton">Save Settings</button>
+
+    <div class="note">Note: For some changes to take full effect, you may need to reload open tabs.</div>
+
+    <script src="popup.js"></script>
+  </body>
+</html>
