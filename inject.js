@@ -1,379 +1,441 @@
-// inject.js - Fixed version that uses window.fingerprintSettings instead of chrome API
+// FingerprintPoisoner injected script
+// This is injected into the page context to poison fingerprinting APIs
 
-// Get settings from the window object (set by content script)
-let settings = window.fingerprintSettings || {
-  poisonCanvas: true,
-  poisonFonts: true,
-  spoofTimezone: true,
-  hideWebRTC: true,
-  modifyUserAgent: true,
-  modifyScreenSize: true,
-  hidePlugins: true,
-  modifyNavigator: true,
-  noise: 0.3,
-};
+(function () {
+  // ===== Initialization =====
 
-// Store original methods to avoid infinite loops
-const originalGetContext = HTMLCanvasElement.prototype.getContext;
-const originalToDataURL = HTMLCanvasElement.prototype.toDataURL;
-const originalToBlob = HTMLCanvasElement.prototype.toBlob;
-const originalGetImageData = CanvasRenderingContext2D.prototype.getImageData;
-const originalMeasureText = CanvasRenderingContext2D.prototype.measureText;
-const originalDateTimeFormat = Intl.DateTimeFormat;
-const originalDateGetTimezoneOffset = Date.prototype.getTimezoneOffset;
+  // Get settings from the script element's data attributes
+  const scriptElement = document.currentScript;
+  const settingsJson = scriptElement.dataset.settings;
+  const domain = scriptElement.dataset.domain;
 
-function applyFingerprinting() {
-  // Apply each protection based on settings
+  let settings;
+  try {
+    settings = JSON.parse(settingsJson);
+  } catch (e) {
+    // Default settings if parsing fails
+    settings = {
+      enabled: true,
+      poisonCanvas: true,
+      poisonWebGL: true,
+      poisonAudioContext: true,
+      poisonClientRects: true,
+      poisonFonts: true,
+      consistentNoise: true,
+      noiseLevel: 2,
+    };
+  }
+
+  // Only run if enabled
+  if (!settings.enabled) {
+    return;
+  }
+
+  // ===== Utility Functions =====
+
+  // Generate consistent seed for a domain
+  function generateSeed(domain) {
+    let seed = 0;
+    for (let i = 0; i < domain.length; i++) {
+      seed += domain.charCodeAt(i);
+    }
+    return seed;
+  }
+
+  // Seeded random number generator
+  function createSeededRandom(domain) {
+    let seed = generateSeed(domain);
+
+    return function () {
+      if (!settings.consistentNoise) {
+        return Math.random();
+      }
+
+      seed = (seed * 9301 + 49297) % 233280;
+      return seed / 233280;
+    };
+  }
+
+  const seededRandom = createSeededRandom(domain);
+
+  // Add controlled noise to a value
+  function addValueNoise(value, noiseLevel) {
+    const noise = (seededRandom() * 2 - 1) * (noiseLevel / 10);
+    return value * (1 + noise);
+  }
+
+  // Add controlled noise to a pixel
+  function addPixelNoise(pixel, noiseLevel) {
+    return Math.min(255, Math.max(0, pixel + Math.floor((seededRandom() * 2 - 1) * noiseLevel * 5)));
+  }
+
+  // ===== Canvas Fingerprinting Protection =====
+
   if (settings.poisonCanvas) {
-    poisonCanvas();
-  }
+    // Store original toDataURL, toBlob and getImageData methods
+    const originalToDataURL = HTMLCanvasElement.prototype.toDataURL;
+    const originalToBlob = HTMLCanvasElement.prototype.toBlob;
+    const originalGetImageData = CanvasRenderingContext2D.prototype.getImageData;
 
-  if (settings.poisonFonts) {
-    poisonFonts();
-  }
+    // Override toDataURL
+    HTMLCanvasElement.prototype.toDataURL = function () {
+      const noiseLevel = settings.noiseLevel;
 
-  if (settings.spoofTimezone) {
-    spoofTimezone();
-  }
+      // Small canvases are often used for fingerprinting
+      const potentialFingerprinting = this.width <= 500 && this.height <= 200;
 
-  if (settings.hideWebRTC) {
-    blockWebRTC();
-  }
+      if (potentialFingerprinting) {
+        // Get the context and image data
+        const ctx = this.getContext("2d");
+        const imageData = ctx.getImageData(0, 0, this.width, this.height);
+        const data = imageData.data;
 
-  if (settings.modifyUserAgent) {
-    spoofUserAgent();
-  }
+        // Add noise to the image data
+        for (let i = 0; i < data.length; i += 4) {
+          // Modify RGBA values with subtle noise
+          data[i] = addPixelNoise(data[i], noiseLevel); // R
+          data[i + 1] = addPixelNoise(data[i + 1], noiseLevel); // G
+          data[i + 2] = addPixelNoise(data[i + 2], noiseLevel); // B
+          // Leave alpha channel alone to avoid too obvious modifications
+        }
 
-  if (settings.modifyScreenSize) {
-    modifyScreenProperties();
-  }
+        // Put the modified image data back
+        ctx.putImageData(imageData, 0, 0);
+      }
 
-  if (settings.hidePlugins) {
-    hidePlugins();
-  }
-
-  if (settings.modifyNavigator) {
-    modifyNavigatorProperties();
-  }
-}
-
-// Function to add controlled noise to canvas data
-function addNoiseToImageData(imageData) {
-  const noise = settings.noise;
-  for (let i = 0; i < imageData.data.length; i += 4) {
-    // Add slight random variations to RGB values
-    imageData.data[i] = Math.max(0, Math.min(255, imageData.data[i] + Math.floor((Math.random() - 0.5) * noise * 10)));
-    imageData.data[i + 1] = Math.max(
-      0,
-      Math.min(255, imageData.data[i + 1] + Math.floor((Math.random() - 0.5) * noise * 10)),
-    );
-    imageData.data[i + 2] = Math.max(
-      0,
-      Math.min(255, imageData.data[i + 2] + Math.floor((Math.random() - 0.5) * noise * 10)),
-    );
-  }
-  return imageData;
-}
-
-// Function to poison canvas fingerprinting
-function poisonCanvas() {
-  // Override toDataURL
-  HTMLCanvasElement.prototype.toDataURL = function () {
-    // Call original method
-    const dataURL = originalToDataURL.apply(this, arguments);
-
-    // If it's likely being used for fingerprinting (small canvas or hidden), add noise
-    if (this.width <= 16 || this.height <= 16 || this.style.display === "none" || this.style.visibility === "hidden") {
-      const ctx = this.getContext("2d");
-      const imageData = ctx.getImageData(0, 0, this.width, this.height);
-      const noisyImageData = addNoiseToImageData(imageData);
-      ctx.putImageData(noisyImageData, 0, 0);
+      // Call the original method
       return originalToDataURL.apply(this, arguments);
+    };
+
+    // Override toBlob
+    HTMLCanvasElement.prototype.toBlob = function (callback) {
+      const noiseLevel = settings.noiseLevel;
+
+      // Small canvases are often used for fingerprinting
+      const potentialFingerprinting = this.width <= 500 && this.height <= 200;
+
+      if (potentialFingerprinting) {
+        // Get the context and image data
+        const ctx = this.getContext("2d");
+        const imageData = ctx.getImageData(0, 0, this.width, this.height);
+        const data = imageData.data;
+
+        // Add noise to the image data
+        for (let i = 0; i < data.length; i += 4) {
+          data[i] = addPixelNoise(data[i], noiseLevel);
+          data[i + 1] = addPixelNoise(data[i + 1], noiseLevel);
+          data[i + 2] = addPixelNoise(data[i + 2], noiseLevel);
+        }
+
+        // Put the modified image data back
+        ctx.putImageData(imageData, 0, 0);
+      }
+
+      // Call the original method
+      const args = Array.from(arguments);
+      return originalToBlob.apply(this, args);
+    };
+
+    // Override getImageData
+    CanvasRenderingContext2D.prototype.getImageData = function () {
+      // Call the original method
+      const imageData = originalGetImageData.apply(this, arguments);
+
+      // Only poison if it looks like fingerprinting
+      const potentialFingerprinting =
+        arguments[2] <= 200 &&
+        arguments[3] <= 200 && // Small area
+        this.canvas.width <= 500 &&
+        this.canvas.height <= 200; // Small canvas
+
+      if (potentialFingerprinting) {
+        const data = imageData.data;
+        const noiseLevel = settings.noiseLevel;
+
+        // Add noise to the image data
+        for (let i = 0; i < data.length; i += 4) {
+          data[i] = addPixelNoise(data[i], noiseLevel);
+          data[i + 1] = addPixelNoise(data[i + 1], noiseLevel);
+          data[i + 2] = addPixelNoise(data[i + 2], noiseLevel);
+        }
+      }
+
+      return imageData;
+    };
+  }
+
+  // ===== WebGL Fingerprinting Protection =====
+
+  if (settings.poisonWebGL) {
+    // WebGL parameters commonly used for fingerprinting
+    const WEBGL_PARAMS = [
+      "ALIENWARE_MAX_LIGHTS",
+      "MAX_COMBINED_TEXTURE_IMAGE_UNITS",
+      "MAX_CUBE_MAP_TEXTURE_SIZE",
+      "MAX_FRAGMENT_UNIFORM_VECTORS",
+      "MAX_RENDERBUFFER_SIZE",
+      "MAX_TEXTURE_IMAGE_UNITS",
+      "MAX_TEXTURE_SIZE",
+      "MAX_VARYING_VECTORS",
+      "MAX_VERTEX_ATTRIBS",
+      "MAX_VERTEX_TEXTURE_IMAGE_UNITS",
+      "MAX_VERTEX_UNIFORM_VECTORS",
+      "MAX_VIEWPORT_DIMS",
+      "SHADING_LANGUAGE_VERSION",
+      "VENDOR",
+      "VERSION",
+    ];
+
+    // Store original getParameter method
+    const originalGetParameter = WebGLRenderingContext.prototype.getParameter;
+
+    // Override getParameter
+    WebGLRenderingContext.prototype.getParameter = function (parameter) {
+      const result = originalGetParameter.call(this, parameter);
+
+      // Only modify specific parameters used in fingerprinting
+      if (WEBGL_PARAMS.includes(parameter) && result !== null && result !== undefined) {
+        // Handle different types of return values
+        if (typeof result === "number") {
+          return addValueNoise(result, settings.noiseLevel);
+        } else if (result instanceof Float32Array) {
+          const modified = new Float32Array(result);
+          for (let i = 0; i < modified.length; i++) {
+            modified[i] = addValueNoise(modified[i], settings.noiseLevel);
+          }
+          return modified;
+        } else if (result instanceof Int32Array) {
+          const modified = new Int32Array(result);
+          for (let i = 0; i < modified.length; i++) {
+            modified[i] = Math.round(addValueNoise(modified[i], settings.noiseLevel));
+          }
+          return modified;
+        }
+      }
+
+      return result;
+    };
+
+    // Do the same for WebGL2RenderingContext if it exists
+    if (typeof WebGL2RenderingContext !== "undefined") {
+      const originalGetParameterWebGL2 = WebGL2RenderingContext.prototype.getParameter;
+
+      WebGL2RenderingContext.prototype.getParameter = function (parameter) {
+        const result = originalGetParameterWebGL2.call(this, parameter);
+
+        if (WEBGL_PARAMS.includes(parameter) && result !== null && result !== undefined) {
+          if (typeof result === "number") {
+            return addValueNoise(result, settings.noiseLevel);
+          } else if (result instanceof Float32Array) {
+            const modified = new Float32Array(result);
+            for (let i = 0; i < modified.length; i++) {
+              modified[i] = addValueNoise(modified[i], settings.noiseLevel);
+            }
+            return modified;
+          } else if (result instanceof Int32Array) {
+            const modified = new Int32Array(result);
+            for (let i = 0; i < modified.length; i++) {
+              modified[i] = Math.round(addValueNoise(modified[i], settings.noiseLevel));
+            }
+            return modified;
+          }
+        }
+
+        return result;
+      };
     }
+  }
 
-    return dataURL;
-  };
+  // ===== Audio Fingerprinting Protection =====
 
-  // Override toBlob
-  HTMLCanvasElement.prototype.toBlob = function (callback) {
-    // For small or hidden canvases that might be used for fingerprinting
-    if (this.width <= 16 || this.height <= 16 || this.style.display === "none" || this.style.visibility === "hidden") {
-      const ctx = this.getContext("2d");
-      const imageData = ctx.getImageData(0, 0, this.width, this.height);
-      const noisyImageData = addNoiseToImageData(imageData);
-      ctx.putImageData(noisyImageData, 0, 0);
-    }
+  if (settings.poisonAudioContext) {
+    // AudioContext methods used for fingerprinting
+    if (typeof AudioContext !== "undefined") {
+      const originalCreateOscillator = AudioContext.prototype.createOscillator;
+      const originalGetChannelData = AudioBuffer.prototype.getChannelData;
+      const originalCopyFromChannel = AudioBuffer.prototype.copyFromChannel;
 
-    originalToBlob.apply(this, arguments);
-  };
+      // Override createOscillator
+      AudioContext.prototype.createOscillator = function () {
+        const oscillator = originalCreateOscillator.apply(this, arguments);
 
-  // Override getImageData
-  CanvasRenderingContext2D.prototype.getImageData = function () {
-    const imageData = originalGetImageData.apply(this, arguments);
+        // Store original start method
+        const originalStart = oscillator.start;
 
-    // If canvas size suggests fingerprinting
-    if (this.canvas.width <= 16 || this.canvas.height <= 16) {
-      return addNoiseToImageData(imageData);
-    }
+        // Override start method
+        oscillator.start = function () {
+          // Add subtle frequency noise before starting
+          if (this.frequency && this.frequency.value) {
+            this.frequency.value = addValueNoise(this.frequency.value, settings.noiseLevel / 2);
+          }
 
-    return imageData;
-  };
-}
+          return originalStart.apply(this, arguments);
+        };
 
-// Function to poison font fingerprinting
-function poisonFonts() {
-  // Override measureText to add slight random variations
-  CanvasRenderingContext2D.prototype.measureText = function (text) {
-    const metrics = originalMeasureText.apply(this, arguments);
-    const noise = settings.noise * 0.05; // Smaller noise for text to avoid breaking layouts
+        return oscillator;
+      };
 
-    // Add subtle randomness to width
-    const originalWidth = metrics.width;
-    Object.defineProperty(metrics, "width", {
-      get: function () {
-        return originalWidth * (1 + (Math.random() - 0.5) * noise);
-      },
-    });
+      // Override getChannelData
+      AudioBuffer.prototype.getChannelData = function (channel) {
+        const data = originalGetChannelData.call(this, channel);
 
-    return metrics;
-  };
+        // Only modify short audio buffers (likely fingerprinting)
+        if (this.length < 1000) {
+          const noiseLevel = settings.noiseLevel * 0.0001; // Very subtle noise
 
-  // Modify font detection
-  const originalMatchMedia = window.matchMedia;
-  window.matchMedia = function (query) {
-    // If query is checking for fonts
-    if (query.includes("@font-face") || query.includes("font-family")) {
-      // Randomly return false for some font checks
-      if (Math.random() < settings.noise * 0.5) {
-        return {
-          matches: false,
-          media: query,
+          // Create copy to avoid modifying original
+          const copy = new Float32Array(data.length);
+
+          // Add noise to the data
+          for (let i = 0; i < data.length; i++) {
+            copy[i] = data[i] + (seededRandom() * 2 - 1) * noiseLevel;
+          }
+
+          return copy;
+        }
+
+        return data;
+      };
+
+      // Override copyFromChannel if it exists
+      if (originalCopyFromChannel) {
+        AudioBuffer.prototype.copyFromChannel = function (destination, channelNumber, startInChannel) {
+          // Call original method
+          originalCopyFromChannel.apply(this, arguments);
+
+          // Only modify short audio buffers (likely fingerprinting)
+          if (this.length < 1000) {
+            const noiseLevel = settings.noiseLevel * 0.0001;
+
+            // Add noise to the destination buffer
+            for (let i = 0; i < destination.length; i++) {
+              destination[i] += (seededRandom() * 2 - 1) * noiseLevel;
+            }
+          }
         };
       }
     }
-    return originalMatchMedia.apply(this, arguments);
-  };
-}
+  }
 
-// Function to spoof timezone
-function spoofTimezone() {
-  // List of popular timezones (UTC offsets in minutes)
-  const timezones = [-480, -420, -360, -300, -240, -180, -120, -60, 0, 60, 120, 180, 240, 300, 360, 420, 480, 540, 600];
+  // ===== ClientRects Fingerprinting Protection =====
 
-  // Choose a random timezone that's different from the real one
-  const realOffset = new Date().getTimezoneOffset();
-  let fakeOffset;
-  do {
-    const randomIndex = Math.floor(Math.random() * timezones.length);
-    fakeOffset = timezones[randomIndex];
-  } while (fakeOffset === -realOffset); // Keep trying until we get a different timezone
+  if (settings.poisonClientRects) {
+    // Store original methods
+    const originalGetClientRects = Element.prototype.getClientRects;
+    const originalGetBoundingClientRect = Element.prototype.getBoundingClientRect;
 
-  // Override getTimezoneOffset
-  Date.prototype.getTimezoneOffset = function () {
-    return fakeOffset;
-  };
+    // Override getClientRects
+    Element.prototype.getClientRects = function () {
+      const rects = originalGetClientRects.apply(this, arguments);
 
-  // Override Intl.DateTimeFormat
-  Intl.DateTimeFormat = function () {
-    const format = new originalDateTimeFormat(...arguments);
-    const originalFormatToParts = format.formatToParts;
+      // Create a modified copy
+      const modifiedRects = Array.from(rects).map((rect) => {
+        const modifiedRect = {};
 
-    format.formatToParts = function () {
-      const parts = originalFormatToParts.apply(this, arguments);
+        // Only modify dimensional properties
+        for (const prop of ["x", "y", "width", "height", "top", "left", "right", "bottom"]) {
+          if (rect[prop] !== undefined) {
+            modifiedRect[prop] = addValueNoise(rect[prop], settings.noiseLevel / 20);
+          }
+        }
 
-      // Modify timezone-related parts
-      for (let i = 0; i < parts.length; i++) {
-        if (parts[i].type === "timeZoneName") {
-          // Generate fake timezone name based on our fake offset
-          const hours = Math.abs(Math.floor(fakeOffset / 60));
-          const sign = fakeOffset > 0 ? "-" : "+"; // Note: getTimezoneOffset returns inverse of UTC offset
-          parts[i].value = `UTC${sign}${hours.toString().padStart(2, "0")}:00`;
+        // Copy non-dimensional properties unchanged
+        for (const prop in rect) {
+          if (modifiedRect[prop] === undefined) {
+            modifiedRect[prop] = rect[prop];
+          }
+        }
+
+        return modifiedRect;
+      });
+
+      // Make the array look like a ClientRectList
+      modifiedRects.item = function (index) {
+        return this[index];
+      };
+
+      return modifiedRects;
+    };
+
+    // Override getBoundingClientRect
+    Element.prototype.getBoundingClientRect = function () {
+      const rect = originalGetBoundingClientRect.apply(this, arguments);
+
+      // Create a modified copy with noise
+      const modifiedRect = {};
+
+      for (const prop in rect) {
+        if (typeof rect[prop] === "number") {
+          // Add subtle noise to dimensional properties
+          modifiedRect[prop] = addValueNoise(rect[prop], settings.noiseLevel / 20);
+        } else {
+          // Copy non-dimensional properties unchanged
+          modifiedRect[prop] = rect[prop];
         }
       }
 
-      return parts;
+      return modifiedRect;
     };
-
-    return format;
-  };
-
-  // Make sure Intl.DateTimeFormat has all the original properties
-  for (const prop in originalDateTimeFormat) {
-    if (originalDateTimeFormat.hasOwnProperty(prop)) {
-      Intl.DateTimeFormat[prop] = originalDateTimeFormat[prop];
-    }
   }
-  Intl.DateTimeFormat.prototype = originalDateTimeFormat.prototype;
-}
 
-// Function to block WebRTC leaks
-function blockWebRTC() {
-  // Overriding RTCPeerConnection to prevent IP leaks
-  if (window.RTCPeerConnection) {
-    const originalRTCPeerConnection = window.RTCPeerConnection;
-    window.RTCPeerConnection = function () {
-      const pc = new originalRTCPeerConnection(...arguments);
+  // ===== Font Fingerprinting Protection =====
 
-      // Override createOffer to remove IP candidates
-      const originalCreateOffer = pc.createOffer;
-      pc.createOffer = function (options) {
-        return originalCreateOffer.apply(this, arguments).then((offer) => {
-          // Modify SDP to remove potential IP leaking candidates
-          offer.sdp = offer.sdp.replace(/UDP|TCP/g, "XXX");
-          return offer;
-        });
+  if (settings.poisonFonts) {
+    // Override font-detecting APIs
+    if (typeof document.fonts !== "undefined" && document.fonts.check) {
+      const originalCheck = document.fonts.check;
+
+      document.fonts.check = function (font, text) {
+        // Sometimes return a random result for uncommon fonts
+        if (seededRandom() < settings.noiseLevel * 0.05) {
+          return seededRandom() > 0.5;
+        }
+
+        return originalCheck.apply(this, arguments);
       };
-
-      return pc;
-    };
-  }
-}
-
-// Function to spoof user agent
-function spoofUserAgent() {
-  // Common User Agents
-  const userAgents = [
-    // Chrome on Windows
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/98.0.4758.102 Safari/537.36",
-    // Chrome on Mac
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/98.0.4758.102 Safari/537.36",
-    // Edge on Windows
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/98.0.4758.102 Safari/537.36 Edg/97.0.1072.69",
-    // Firefox on Windows
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:97.0) Gecko/20100101 Firefox/97.0",
-    // Safari on Mac
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.3 Safari/605.1.15",
-  ];
-
-  // Choose a random user agent
-  const randomUserAgent = userAgents[Math.floor(Math.random() * userAgents.length)];
-
-  // Override navigator.userAgent
-  Object.defineProperty(navigator, "userAgent", {
-    get: function () {
-      return randomUserAgent;
-    },
-  });
-}
-
-// Function to modify screen properties
-function modifyScreenProperties() {
-  // Common screen resolutions
-  const resolutions = [
-    { width: 1366, height: 768 },
-    { width: 1920, height: 1080 },
-    { width: 1536, height: 864 },
-    { width: 1440, height: 900 },
-    { width: 1280, height: 720 },
-  ];
-
-  // Choose a random resolution
-  const randomResolution = resolutions[Math.floor(Math.random() * resolutions.length)];
-
-  // Override screen properties
-  for (const prop of ["width", "height", "availWidth", "availHeight"]) {
-    Object.defineProperty(screen, prop, {
-      get: function () {
-        return prop.includes("width") ? randomResolution.width : randomResolution.height;
-      },
-    });
-  }
-
-  // Adjust window.innerWidth/Height slightly (less aggressive to avoid breaking layouts)
-  const originalInnerWidth = window.innerWidth;
-  const originalInnerHeight = window.innerHeight;
-
-  Object.defineProperty(window, "innerWidth", {
-    get: function () {
-      return originalInnerWidth * (1 + (Math.random() - 0.5) * settings.noise * 0.1);
-    },
-  });
-
-  Object.defineProperty(window, "innerHeight", {
-    get: function () {
-      return originalInnerHeight * (1 + (Math.random() - 0.5) * settings.noise * 0.1);
-    },
-  });
-}
-
-// Function to hide plugins
-function hidePlugins() {
-  // Create fake minimal plugins array
-  const fakePlugins = {
-    length: 0,
-    item: function () {
-      return null;
-    },
-    namedItem: function () {
-      return null;
-    },
-    refresh: function () {},
-  };
-
-  // Override navigator.plugins
-  Object.defineProperty(navigator, "plugins", {
-    get: function () {
-      return fakePlugins;
-    },
-  });
-
-  // Override navigator.mimeTypes
-  Object.defineProperty(navigator, "mimeTypes", {
-    get: function () {
-      return { length: 0 };
-    },
-  });
-}
-
-// Function to modify navigator properties
-function modifyNavigatorProperties() {
-  // List of properties to modify
-  const props = {
-    hardwareConcurrency: [2, 4, 8],
-    deviceMemory: [2, 4, 8],
-    language: ["en-US", "en-GB", "en-CA"],
-    languages: [["en-US"], ["en-US", "en"], ["en-GB", "en"]],
-    platform: ["Win32", "MacIntel", "Linux x86_64"],
-  };
-
-  // Override each property with a random value
-  for (const [prop, values] of Object.entries(props)) {
-    if (prop in navigator) {
-      const randomValue = values[Math.floor(Math.random() * values.length)];
-      Object.defineProperty(navigator, prop, {
-        get: function () {
-          return randomValue;
-        },
-      });
     }
-  }
 
-  // Special handling for navigator.connection
-  if (navigator.connection) {
-    const originalConnection = navigator.connection;
-    Object.defineProperty(navigator, "connection", {
-      get: function () {
-        const fakeConnection = {};
-        // Copy all properties
-        for (const key in originalConnection) {
-          if (key === "effectiveType") {
-            fakeConnection[key] = ["4g", "3g"][Math.floor(Math.random() * 2)];
-          } else if (key === "rtt") {
-            fakeConnection[key] = [0, 50, 100][Math.floor(Math.random() * 3)];
-          } else if (key === "downlink") {
-            fakeConnection[key] = [5, 10, 15][Math.floor(Math.random() * 3)];
-          } else if (typeof originalConnection[key] !== "function") {
-            fakeConnection[key] = originalConnection[key];
+    // Override measureText
+    if (CanvasRenderingContext2D.prototype.measureText) {
+      const originalMeasureText = CanvasRenderingContext2D.prototype.measureText;
+
+      CanvasRenderingContext2D.prototype.measureText = function (text) {
+        const result = originalMeasureText.apply(this, arguments);
+
+        // Add noise to width measurement
+        if (result.width) {
+          result.width = addValueNoise(result.width, settings.noiseLevel / 15);
+        }
+
+        // Add noise to other text metrics if they exist
+        for (const prop of [
+          "actualBoundingBoxAscent",
+          "actualBoundingBoxDescent",
+          "actualBoundingBoxLeft",
+          "actualBoundingBoxRight",
+          "fontBoundingBoxAscent",
+          "fontBoundingBoxDescent",
+        ]) {
+          if (result[prop] !== undefined) {
+            result[prop] = addValueNoise(result[prop], settings.noiseLevel / 15);
           }
         }
-        return fakeConnection;
-      },
-    });
+
+        return result;
+      };
+    }
   }
-}
 
-// Make this function accessible globally so content script can call it
-window.applyFingerprinting = applyFingerprinting;
-
-// Apply fingerprinting protections immediately
-applyFingerprinting();
+  // Report that fingerprint poisoning is active
+  window.postMessage(
+    {
+      type: "FINGERPRINT_POISONER_REPORT",
+      data: {
+        domain: domain,
+        settings: settings,
+        timestamp: new Date().toISOString(),
+      },
+    },
+    "*",
+  );
+})();

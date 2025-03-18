@@ -1,106 +1,111 @@
-// popup.js
+// FingerprintPoisoner popup script
+// Handles settings UI and saving
+
 document.addEventListener("DOMContentLoaded", function () {
   // Get UI elements
-  const enabledToggle = document.getElementById("enabledToggle");
-  const userAgentToggle = document.getElementById("userAgentToggle");
-  const userAgentSelect = document.getElementById("userAgentSelect");
-  const timezoneToggle = document.getElementById("timezoneToggle");
-  const timezoneSelect = document.getElementById("timezoneSelect");
-  const canvasToggle = document.getElementById("canvasToggle");
-  const webrtcToggle = document.getElementById("webrtcToggle");
-  const webglToggle = document.getElementById("webglToggle");
-  const audioToggle = document.getElementById("audioToggle");
-  const randomizeToggle = document.getElementById("randomizeToggle");
-  const saveButton = document.getElementById("saveButton");
+  const enabledToggle = document.getElementById("enabled");
+  const poisonUserAgentToggle = document.getElementById("poisonUserAgent");
+  const poisonCanvasToggle = document.getElementById("poisonCanvas");
+  const poisonWebGLToggle = document.getElementById("poisonWebGL");
+  const poisonAudioContextToggle = document.getElementById("poisonAudioContext");
+  const poisonClientRectsToggle = document.getElementById("poisonClientRects");
+  const poisonFontsToggle = document.getElementById("poisonFonts");
+  const consistentNoiseToggle = document.getElementById("consistentNoise");
+  const noiseLevelSlider = document.getElementById("noiseLevel");
+  const noiseLevelValue = document.getElementById("noiseLevelValue");
+  const saveButton = document.getElementById("save");
 
-  // Load current configuration
-  chrome.runtime.sendMessage({ action: "getConfig" }, (config) => {
-    // Set toggle states
-    enabledToggle.checked = config.enabled;
-    userAgentToggle.checked = config.spoofUserAgent;
-    timezoneToggle.checked = config.spoofTimezone;
-    canvasToggle.checked = config.blockCanvas;
-    webrtcToggle.checked = config.blockWebRTC;
-    webglToggle.checked = config.blockWebGL;
-    audioToggle.checked = config.spoofAudioContext;
-    randomizeToggle.checked = config.randomize;
+  // Load current settings
+  chrome.runtime.sendMessage({ type: "getSettings" }, function (response) {
+    const settings = response.settings;
 
-    // Populate User-Agent select
-    config.userAgents.forEach((agent, index) => {
-      const option = document.createElement("option");
-      option.value = index;
-      option.textContent = formatUserAgent(agent);
-      userAgentSelect.appendChild(option);
-    });
-    userAgentSelect.value = config.selectedUserAgent;
+    // Set UI elements to match current settings
+    enabledToggle.checked = settings.enabled;
+    poisonUserAgentToggle.checked = settings.poisonUserAgent;
+    poisonCanvasToggle.checked = settings.poisonCanvas;
+    poisonWebGLToggle.checked = settings.poisonWebGL;
+    poisonAudioContextToggle.checked = settings.poisonAudioContext;
+    poisonClientRectsToggle.checked = settings.poisonClientRects;
+    poisonFontsToggle.checked = settings.poisonFonts;
+    consistentNoiseToggle.checked = settings.consistentNoise;
+    noiseLevelSlider.value = settings.noiseLevel;
+    noiseLevelValue.textContent = settings.noiseLevel;
 
-    // Populate Timezone select
-    config.timezones.forEach((tz, index) => {
-      const option = document.createElement("option");
-      option.value = index;
-      option.textContent = tz;
-      timezoneSelect.appendChild(option);
-    });
-    timezoneSelect.value = config.selectedTimezone;
-
-    // Update disabled state for selects based on toggles and randomize setting
-    updateSelectDisabledState();
+    // Update enabled state
+    updateEnabledState(settings.enabled);
   });
 
-  // Helper function to format user agent for display
-  function formatUserAgent(ua) {
-    if (ua.includes("Windows")) return "Windows - Chrome";
-    if (ua.includes("Macintosh") && ua.includes("Chrome")) return "macOS - Chrome";
-    if (ua.includes("Linux")) return "Linux - Chrome";
-    if (ua.includes("Safari/605")) return "macOS - Safari";
-    return ua.substring(0, 40) + "...";
+  // Handle noise level slider
+  noiseLevelSlider.addEventListener("input", function () {
+    noiseLevelValue.textContent = this.value;
+  });
+
+  // Handle enabled toggle
+  enabledToggle.addEventListener("change", function () {
+    updateEnabledState(this.checked);
+  });
+
+  // Function to update UI based on enabled state
+  function updateEnabledState(enabled) {
+    const settingsElements = [
+      poisonUserAgentToggle,
+      poisonCanvasToggle,
+      poisonWebGLToggle,
+      poisonAudioContextToggle,
+      poisonClientRectsToggle,
+      poisonFontsToggle,
+      consistentNoiseToggle,
+      noiseLevelSlider,
+    ];
+
+    settingsElements.forEach((element) => {
+      element.disabled = !enabled;
+      // Update parent container opacity to show disabled state
+      const container = element.closest(".toggle-container, .range-container");
+      if (container) {
+        container.style.opacity = enabled ? "1" : "0.5";
+      }
+    });
   }
 
-  // Update disabled state for selects
-  function updateSelectDisabledState() {
-    userAgentSelect.disabled = !userAgentToggle.checked || randomizeToggle.checked;
-    timezoneSelect.disabled = !timezoneToggle.checked || randomizeToggle.checked;
-  }
+  // Handle view stats button
+  document.getElementById("view-stats").addEventListener("click", function () {
+    chrome.runtime.openOptionsPage();
+  });
 
-  // Add event listeners for toggles
-  userAgentToggle.addEventListener("change", updateSelectDisabledState);
-  timezoneToggle.addEventListener("change", updateSelectDisabledState);
-  randomizeToggle.addEventListener("change", updateSelectDisabledState);
-
-  // Save button click handler
-  saveButton.addEventListener("click", () => {
-    const updatedConfig = {
+  // Handle save button
+  saveButton.addEventListener("click", function () {
+    const settings = {
       enabled: enabledToggle.checked,
-      spoofUserAgent: userAgentToggle.checked,
-      spoofTimezone: timezoneToggle.checked,
-      blockCanvas: canvasToggle.checked,
-      blockWebRTC: webrtcToggle.checked,
-      blockWebGL: webglToggle.checked,
-      spoofAudioContext: audioToggle.checked,
-      randomize: randomizeToggle.checked,
-      selectedUserAgent: parseInt(userAgentSelect.value),
-      selectedTimezone: parseInt(timezoneSelect.value),
+      poisonUserAgent: poisonUserAgentToggle.checked,
+      poisonCanvas: poisonCanvasToggle.checked,
+      poisonWebGL: poisonWebGLToggle.checked,
+      poisonAudioContext: poisonAudioContextToggle.checked,
+      poisonClientRects: poisonClientRectsToggle.checked,
+      poisonFonts: poisonFontsToggle.checked,
+      consistentNoise: consistentNoiseToggle.checked,
+      noiseLevel: parseInt(noiseLevelSlider.value),
     };
 
+    // Save settings
     chrome.runtime.sendMessage(
       {
-        action: "updateConfig",
-        config: updatedConfig,
+        type: "saveSettings",
+        settings: settings,
       },
-      (response) => {
+      function (response) {
         if (response.success) {
-          // Show success message
+          // Show success indicator
           saveButton.textContent = "Saved!";
-          setTimeout(() => {
+          saveButton.style.backgroundColor = "#4CAF50";
+
+          // Reset button text after 2 seconds
+          setTimeout(function () {
             saveButton.textContent = "Save Settings";
-          }, 1500);
+            saveButton.style.backgroundColor = "#2196F3";
+          }, 2000);
         }
       },
     );
   });
 });
-
-// icons folder - you'll need to create these icons or use placeholders
-// icons/icon16.png  (16x16 pixels)
-// icons/icon48.png  (48x48 pixels)
-// icons/icon128.png (128x128 pixels)

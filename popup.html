@@ -1,31 +1,46 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
   <head>
-    <title>Fingerprint Protector</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FingerprintPoisoner Settings</title>
     <style>
       body {
-        font-family: Arial, sans-serif;
-        padding: 15px;
-        width: 300px;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans",
+          "Helvetica Neue", sans-serif;
+        width: 320px;
+        margin: 0;
+        padding: 16px;
+        color: #333;
       }
 
       h1 {
         font-size: 18px;
-        margin-bottom: 15px;
+        margin-top: 0;
+        margin-bottom: 16px;
+        border-bottom: 1px solid #ddd;
+        padding-bottom: 8px;
       }
 
-      .control-group {
-        margin-bottom: 15px;
+      .toggle-container {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
       }
 
-      .switch {
+      .toggle-label {
+        font-weight: 500;
+      }
+
+      .toggle-switch {
         position: relative;
         display: inline-block;
         width: 40px;
-        height: 24px;
+        height: 20px;
       }
 
-      .switch input {
+      .toggle-switch input {
         opacity: 0;
         width: 0;
         height: 0;
@@ -39,9 +54,8 @@
         right: 0;
         bottom: 0;
         background-color: #ccc;
-        -webkit-transition: 0.4s;
         transition: 0.4s;
-        border-radius: 24px;
+        border-radius: 20px;
       }
 
       .slider:before {
@@ -49,10 +63,9 @@
         content: "";
         height: 16px;
         width: 16px;
-        left: 4px;
-        bottom: 4px;
+        left: 2px;
+        bottom: 2px;
         background-color: white;
-        -webkit-transition: 0.4s;
         transition: 0.4s;
         border-radius: 50%;
       }
@@ -61,156 +74,143 @@
         background-color: #2196f3;
       }
 
-      input:focus + .slider {
-        box-shadow: 0 0 1px #2196f3;
-      }
-
       input:checked + .slider:before {
-        -webkit-transform: translateX(16px);
-        -ms-transform: translateX(16px);
-        transform: translateX(16px);
+        transform: translateX(20px);
       }
 
-      .control-row {
+      .settings-section {
+        margin-top: 16px;
+        padding-top: 8px;
+        border-top: 1px solid #eee;
+      }
+
+      .range-container {
+        display: flex;
+        flex-direction: column;
+        margin-bottom: 12px;
+      }
+
+      .range-header {
         display: flex;
         justify-content: space-between;
-        align-items: center;
-        margin-bottom: 10px;
+        margin-bottom: 4px;
       }
 
-      .control-label {
-        margin-right: 10px;
+      .range-value {
+        font-weight: bold;
       }
 
-      select {
-        padding: 5px;
-        border-radius: 4px;
-        border: 1px solid #ccc;
-        width: 150px;
-      }
-
-      hr {
-        margin: 20px 0;
-        border: none;
-        border-top: 1px solid #eee;
+      .footer {
+        margin-top: 16px;
+        font-size: 12px;
+        color: #777;
+        text-align: center;
       }
 
       button {
         background-color: #2196f3;
         color: white;
         border: none;
-        padding: 8px 15px;
+        padding: 8px 16px;
         border-radius: 4px;
         cursor: pointer;
-        font-weight: bold;
+        font-weight: 500;
+        margin-top: 16px;
+        width: 100%;
       }
 
       button:hover {
         background-color: #0b7dda;
       }
-
-      .note {
-        margin-top: 15px;
-        font-size: 12px;
-        color: #666;
-        font-style: italic;
-      }
     </style>
   </head>
   <body>
-    <h1>Fingerprint Protector</h1>
+    <h1>FingerprintPoisoner</h1>
 
-    <div class="control-group">
-      <div class="control-row">
-        <span class="control-label">Enable Protection</span>
-        <label class="switch">
-          <input type="checkbox" id="enabledToggle" />
+    <div class="toggle-container">
+      <span class="toggle-label">Enable fingerprint poisoning</span>
+      <label class="toggle-switch">
+        <input type="checkbox" id="enabled" />
+        <span class="slider"></span>
+      </label>
+    </div>
+
+    <div class="settings-section">
+      <h2>Protection Settings</h2>
+
+      <div class="toggle-container">
+        <span class="toggle-label">Poison User-Agent</span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="poisonUserAgent" />
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="toggle-container">
+        <span class="toggle-label">Poison Canvas</span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="poisonCanvas" />
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="toggle-container">
+        <span class="toggle-label">Poison WebGL</span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="poisonWebGL" />
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="toggle-container">
+        <span class="toggle-label">Poison AudioContext</span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="poisonAudioContext" />
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="toggle-container">
+        <span class="toggle-label">Poison ClientRects</span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="poisonClientRects" />
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="toggle-container">
+        <span class="toggle-label">Poison Fonts</span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="poisonFonts" />
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="toggle-container">
+        <span class="toggle-label">Consistent noise per domain</span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="consistentNoise" />
           <span class="slider"></span>
         </label>
       </div>
     </div>
 
-    <hr />
-
-    <div class="control-group">
-      <div class="control-row">
-        <span class="control-label">User-Agent Spoofing</span>
-        <label class="switch">
-          <input type="checkbox" id="userAgentToggle" />
-          <span class="slider"></span>
-        </label>
-      </div>
-      <select id="userAgentSelect">
-        <!-- Will be populated by JavaScript -->
-      </select>
-    </div>
-
-    <div class="control-group">
-      <div class="control-row">
-        <span class="control-label">Timezone Spoofing</span>
-        <label class="switch">
-          <input type="checkbox" id="timezoneToggle" />
-          <span class="slider"></span>
-        </label>
-      </div>
-      <select id="timezoneSelect">
-        <!-- Will be populated by JavaScript -->
-      </select>
-    </div>
-
-    <div class="control-group">
-      <div class="control-row">
-        <span class="control-label">Canvas Fingerprinting</span>
-        <label class="switch">
-          <input type="checkbox" id="canvasToggle" />
-          <span class="slider"></span>
-        </label>
+    <div class="settings-section">
+      <div class="range-container">
+        <div class="range-header">
+          <span>Noise Level</span>
+          <span class="range-value" id="noiseLevelValue">2</span>
+        </div>
+        <input type="range" min="1" max="4" value="2" id="noiseLevel" />
       </div>
     </div>
 
-    <div class="control-group">
-      <div class="control-row">
-        <span class="control-label">Block WebRTC</span>
-        <label class="switch">
-          <input type="checkbox" id="webrtcToggle" />
-          <span class="slider"></span>
-        </label>
-      </div>
+    <button id="save">Save Settings</button>
+    <button id="view-stats" style="background-color: #4caf50">View Statistics</button>
+
+    <div class="footer">
+      <p>FingerprintPoisoner v1.0</p>
     </div>
-
-    <div class="control-group">
-      <div class="control-row">
-        <span class="control-label">Block WebGL</span>
-        <label class="switch">
-          <input type="checkbox" id="webglToggle" />
-          <span class="slider"></span>
-        </label>
-      </div>
-    </div>
-
-    <div class="control-group">
-      <div class="control-row">
-        <span class="control-label">AudioContext Protection</span>
-        <label class="switch">
-          <input type="checkbox" id="audioToggle" />
-          <span class="slider"></span>
-        </label>
-      </div>
-    </div>
-
-    <div class="control-group">
-      <div class="control-row">
-        <span class="control-label">Randomize Values</span>
-        <label class="switch">
-          <input type="checkbox" id="randomizeToggle" />
-          <span class="slider"></span>
-        </label>
-      </div>
-    </div>
-
-    <button id="saveButton">Save Settings</button>
-
-    <div class="note">Note: For some changes to take full effect, you may need to reload open tabs.</div>
 
     <script src="popup.js"></script>
   </body>

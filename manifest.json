@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
-  "name": "Fingerprint Protector",
+  "name": "FingerprintPoisoner",
   "version": "1.0",
-  "description": "Protects against browser fingerprinting by spoofing or blocking identifiable information",
-  "permissions": ["declarativeNetRequest", "storage", "tabs"],
+  "description": "Poisons browser fingerprinting techniques by adding noise to fingerprinting vectors",
+  "permissions": ["declarativeNetRequest", "storage", "scripting"],
   "host_permissions": ["<all_urls>"],
   "background": {
     "service_worker": "background.js"
@@ -12,19 +12,15 @@
     {
       "matches": ["<all_urls>"],
       "js": ["content.js"],
-      "run_at": "document_start",
-      "all_frames": true
+      "run_at": "document_start"
     }
   ],
-  "declarative_net_request": {
-    "rule_resources": [
-      {
-        "id": "ruleset_1",
-        "enabled": true,
-        "path": "rules.json"
-      }
-    ]
-  },
+  "web_accessible_resources": [
+    {
+      "resources": ["inject.js", "detector.js"],
+      "matches": ["<all_urls>"]
+    }
+  ],
   "action": {
     "default_popup": "popup.html",
     "default_icon": {
@@ -33,6 +29,7 @@
       "128": "icons/icon128.png"
     }
   },
+  "options_page": "stats.html",
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
