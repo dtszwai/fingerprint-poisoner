@@ -1,38 +1,46 @@
 {
   "manifest_version": 3,
+  "version": "0.0.8",
   "name": "FingerprintPoisoner",
-  "version": "1.0",
-  "description": "Poisons browser fingerprinting techniques by adding noise to fingerprinting vectors",
-  "permissions": ["declarativeNetRequest", "storage", "scripting"],
-  "host_permissions": ["<all_urls>"],
-  "background": {
-    "service_worker": "background.js"
+  "description": "Protect your privacy by poisoning browser fingerprinting attempts including canvas fingerprinting",
+  "icons": {
+    "80": "icons/icon80.png"
   },
+  "action": {
+    "default_icon": {
+      "80": "icons/icon80.png"
+    }
+  },
+  "host_permissions": ["*://*/*"],
+  "permissions": ["notifications", "storage", "contextMenus", "scripting", "declarativeNetRequest"],
+  "background": { "service_worker": "/src/background/index.js", "type": "module" },
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
-      "js": ["content.js"],
-      "run_at": "document_start"
-    }
-  ],
-  "web_accessible_resources": [
+      "world": "MAIN",
+      "matches": ["*://*/*"],
+      "match_about_blank": true,
+      "match_origin_as_fallback": true,
+      "all_frames": true,
+      "run_at": "document_start",
+      "js": ["/src/inject/canvas/main.js"]
+    },
     {
-      "resources": ["inject.js", "detector.js"],
-      "matches": ["<all_urls>"]
+      "world": "ISOLATED",
+      "matches": ["*://*/*"],
+      "match_about_blank": true,
+      "match_origin_as_fallback": true,
+      "all_frames": true,
+      "run_at": "document_start",
+      "js": ["/src/inject/canvas/isolated.js"]
     }
   ],
-  "action": {
-    "default_popup": "popup.html",
-    "default_icon": {
-      "16": "icons/icon16.png",
-      "48": "icons/icon48.png",
-      "128": "icons/icon128.png"
-    }
-  },
-  "options_page": "stats.html",
-  "icons": {
-    "16": "icons/icon16.png",
-    "48": "icons/icon48.png",
-    "128": "icons/icon128.png"
+  "declarative_net_request": {
+    "rule_resources": [
+      {
+        "id": "ruleset_1",
+        "enabled": true,
+        "path": "rules.json"
+      }
+    ]
   }
 }
