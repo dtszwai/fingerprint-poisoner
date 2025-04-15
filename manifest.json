@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "version": "0.6.0",
+  "version": "1.0.0",
   "name": "FingerprintPoisoner",
-  "description": "Protect your privacy by poisoning browser fingerprinting attempts including canvas and WebRTC fingerprinting",
+  "description": "Protect your privacy by poisoning browser fingerprinting attempts including canvas, WebRTC, date/timezone, font detection, and screen resolution fingerprinting",
   "icons": {
     "80": "icons/icon80.png"
   },

@@ -31,6 +31,27 @@ FingerprintPoisoner is a comprehensive privacy tool that helps protect you again
 - Adds noise to WebRTC statistics and timing data
 - Protects device information when enumerating media devices
 
+### Date/Timezone Protection
+
+- Normalizes timezone information to prevent geolocation tracking
+- Makes all date methods return UTC values instead of local time
+- Standardizes date formats to prevent locale-based fingerprinting
+- Neutralizes `Intl.DateTimeFormat` for consistent results across users
+
+### Font Detection Protection
+
+- Adds random noise to element dimensions used for font detection
+- Modifies font metrics reporting to prevent enumeration of installed fonts
+- Alters element measurements in ways that are difficult to detect
+- Preserves website functionality while blocking fingerprinting
+
+### Screen Resolution Protection
+
+- Normalizes screen dimensions to common values
+- Adds subtle random noise to reported screen properties
+- Provides consistent window dimensions that match modified screen size
+- Prevents tracking based on unusual screen or window sizes
+
 ## How It Works
 
 ### Header Protection
@@ -54,6 +75,33 @@ The extension intercepts WebRTC connections to:
 2. Replace addressing information with private IP addresses
 3. Add minor statistical noise to connection data
 4. Randomize device identifiers in a consistent way per session
+
+### Date/Timezone Protection
+
+The extension modifies JavaScript's Date object to:
+
+1. Override local time methods to use UTC equivalents
+2. Always report a timezone offset of 0 (UTC)
+3. Standardize date string formatting to remove locale information
+4. Present consistent date handling behavior regardless of location
+
+### Font Detection Protection
+
+To prevent font enumeration, the extension:
+
+1. Adds subtle random noise to element dimensions
+2. Modifies properties like offsetWidth and offsetHeight
+3. Alters getBoundingClientRect() results slightly
+4. Makes font detection tests return inconsistent results
+
+### Screen Protection
+
+The extension spoofs screen properties by:
+
+1. Normalizing reported screen dimensions to common values
+2. Adding subtle random variations to prevent exact matching
+3. Ensuring consistent window dimensions relative to screen size
+4. Presenting standard device pixel ratios
 
 ## Installation
 
@@ -85,7 +133,8 @@ The extension randomizes headers on a variable schedule to prevent tracking base
 ### Performance Considerations
 
 - Canvas protection selectively modifies only a small percentage of pixels for efficiency
-- Header modification uses efficient declarativeNetRequest API
+- Element dimension modifications use a probabilistic approach to minimize visual impacts
+- Screen and date modifications are lightweight and have minimal performance impact
 - All protection methods are designed to have minimal impact on browsing performance
 
 ## Privacy Notes
