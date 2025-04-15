@@ -103,6 +103,18 @@ The extension spoofs screen properties by:
 3. Ensuring consistent window dimensions relative to screen size
 4. Presenting standard device pixel ratios
 
+## Demo
+
+A demonstration is available in the `/demo` directory that shows FingerprintPoisoner in action against FingerprintJS v4, one of the most popular browser fingerprinting libraries available today.
+
+### Running the Demo
+
+1. Navigate to the `/demo` directory
+2. Open `index.html` in your browser
+3. The page will generate your browser's visitor identifier and detailed fingerprinting information using FingerprintJS v4
+
+The demo provides a simple interface to visualize how fingerprinting works and allows you to test the effectiveness of FingerprintPoisoner by running it with and without the extension enabled. You can compare the visitor identifiers and debug data to see exactly which fingerprinting signals are being poisoned by the extension.
+
 ## Installation
 
 ### Manual Installation
