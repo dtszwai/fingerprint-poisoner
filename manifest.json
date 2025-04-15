@@ -1,0 +1,55 @@
+{
+  "manifest_version": 3,
+  "version": "0.3.0",
+  "name": "FingerprintPoisoner",
+  "description": "Protect your privacy by poisoning browser fingerprinting attempts including canvas and WebRTC fingerprinting",
+  "icons": {
+    "80": "icons/icon80.png"
+  },
+  "action": {
+    "default_icon": {
+      "80": "icons/icon80.png"
+    }
+  },
+  "host_permissions": ["*://*/*"],
+  "permissions": ["notifications", "storage", "contextMenus", "scripting", "declarativeNetRequest"],
+  "background": { "service_worker": "/src/background/main.js", "type": "module" },
+  "content_scripts": [
+    {
+      "world": "MAIN",
+      "matches": ["*://*/*"],
+      "match_about_blank": true,
+      "match_origin_as_fallback": true,
+      "all_frames": true,
+      "run_at": "document_start",
+      "js": ["/src/inject/canvas/main.js"]
+    },
+    {
+      "world": "ISOLATED",
+      "matches": ["*://*/*"],
+      "match_about_blank": true,
+      "match_origin_as_fallback": true,
+      "all_frames": true,
+      "run_at": "document_start",
+      "js": ["/src/inject/canvas/isolated.js"]
+    },
+    {
+      "world": "MAIN",
+      "matches": ["*://*/*"],
+      "match_about_blank": true,
+      "match_origin_as_fallback": true,
+      "all_frames": true,
+      "run_at": "document_start",
+      "js": ["/src/inject/webrtc/main.js"]
+    },
+    {
+      "world": "ISOLATED",
+      "matches": ["*://*/*"],
+      "match_about_blank": true,
+      "match_origin_as_fallback": true,
+      "all_frames": true,
+      "run_at": "document_start",
+      "js": ["/src/inject/webrtc/isolated.js"]
+    }
+  ]
+}
